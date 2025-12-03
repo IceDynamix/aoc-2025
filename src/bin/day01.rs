@@ -7,22 +7,50 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut s = String::new();
     File::open("input/input01.txt".to_string())?.read_to_string(&mut s)?;
 
-    println!("part 1: {}", process1(&s)?);
+    let turns: Vec<_> = s.lines().map(Turn::from_str).collect::<Result<_, _>>()?;
+
+    println!("part 1: {}", count(&turns, false));
+    println!("part 2: {}", count(&turns, true));
 
     Ok(())
 }
 
-fn process1(s: &str) -> Result<u32, Box<dyn Error>> {
+fn count(turns: &[Turn], with_passing_by: bool) -> usize {
     let mut dial = Dial::new(50, 100);
     let mut count_zeros = 0;
-    for line in s.lines() {
-        let turn = Turn::from_str(line)?;
-        dial.turn_by(turn);
-        if dial.value == 0 {
+
+    for turn in turns {
+        if turn.1 == 0 {
+            continue;
+        }
+
+        let skip_counting_next_underflow = dial.value == 0 && turn.0 == Direction::Left;
+        
+        let overflows = dial.turn_by(turn);
+
+        if with_passing_by {
+            match turn.0 {
+                Direction::Left => {
+                    // we can't use the overflows value directly, because it's possible to turn the dial to zero without
+                    // triggering an overflow. that zero should be counted in the previous turn and ignored in the next
+                    // if the turn is another left and triggers an overflow
+                    count_zeros += overflows;
+                    if skip_counting_next_underflow {
+                        count_zeros -= 1;
+                    }
+                    if dial.value == 0 {
+                        count_zeros += 1;
+                    }
+                }
+                Direction::Right => {
+                    count_zeros += overflows;
+                }
+            }
+        } else if dial.value == 0 {
             count_zeros += 1;
-        };
+        }
     }
-    Ok(count_zeros)
+    count_zeros
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -65,13 +93,15 @@ impl Dial {
         Self { value, upper_bound }
     }
 
-    fn turn_by(&mut self, turn: Turn) {
+    fn turn_by(&mut self, turn: &Turn) -> usize {
         let sign = match turn.0 {
             Direction::Left => -1,
             Direction::Right => 1,
         };
 
-        self.value = (self.value + sign * turn.1 as isize).rem_euclid(self.upper_bound as isize);
+        let value_full = self.value + sign * turn.1 as isize;
+        self.value = value_full.rem_euclid(self.upper_bound as isize);
+        value_full.div_euclid(self.upper_bound as isize).abs() as usize
     }
 }
 
@@ -113,32 +143,32 @@ L82";
     fn test_dial() {
         // normal
         let mut dial = Dial::new(50, 100);
-        dial.turn_by(Turn(Direction::Left, 1));
+        dial.turn_by(&Turn(Direction::Left, 1));
         assert_eq!(dial.value, 49);
 
         let mut dial = Dial::new(50, 100);
-        dial.turn_by(Turn(Direction::Right, 1));
+        dial.turn_by(&Turn(Direction::Right, 1));
         assert_eq!(dial.value, 51);
 
         // overflow
 
         let mut dial = Dial::new(50, 100);
-        dial.turn_by(Turn(Direction::Left, 101));
+        dial.turn_by(&Turn(Direction::Left, 101));
         assert_eq!(dial.value, 49);
 
         let mut dial = Dial::new(50, 100);
-        dial.turn_by(Turn(Direction::Right, 101));
+        dial.turn_by(&Turn(Direction::Right, 101));
         assert_eq!(dial.value, 51);
 
         // edge case
 
         let mut dial = Dial::new(99, 100);
-        dial.turn_by(Turn(Direction::Right, 1));
+        dial.turn_by(&Turn(Direction::Right, 1));
         assert_eq!(dial.value, 0);
 
         let mut dial = Dial::new(0, 100);
-        dial.turn_by(Turn(Direction::Left, 0));
-        assert_eq!(dial.value, 0);
+        dial.turn_by(&Turn(Direction::Left, 1));
+        assert_eq!(dial.value, 99);
     }
 
     #[test]
@@ -148,25 +178,65 @@ L82";
 
         let mut turns = EXAMPLE.lines().map(|l| Turn::from_str(l).unwrap());
 
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 82);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 52);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 0);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 95);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 55);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 0);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 99);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 0);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 14);
-        dial.turn_by(turns.next().unwrap());
+        dial.turn_by(&turns.next().unwrap());
         assert_eq!(dial.value, 32);
+    }
+
+    #[test]
+    fn test_overflow() {
+        let mut dial = Dial::new(50, 100);
+        assert_eq!(dial.turn_by(&Turn(Direction::Right, 1000)), 10);
+
+        // overflow
+        let mut dial = Dial::new(50, 100);
+        assert_eq!(dial.turn_by(&Turn(Direction::Left, 101)), 1);
+        assert_eq!(dial.value, 49);
+
+        let mut dial = Dial::new(50, 100);
+        assert_eq!(dial.turn_by(&Turn(Direction::Right, 101)), 1);
+        assert_eq!(dial.value, 51);
+
+        // edge case
+        let mut dial = Dial::new(99, 100);
+        assert_eq!(dial.turn_by(&Turn(Direction::Right, 1)), 1);
+        assert_eq!(dial.value, 0);
+
+        let mut dial = Dial::new(1, 100);
+        assert_eq!(dial.turn_by(&Turn(Direction::Left, 1)), 0);
+        assert_eq!(dial.value, 0);
+    }
+
+    #[test]
+    fn test_count() -> Result<(), Box<dyn Error>> {
+        assert_eq!(count(&[Turn(Direction::Right, 1)], true), 0);
+
+        assert_eq!(count(&[Turn(Direction::Right, 100)], true), 1);
+        assert_eq!(count(&[Turn(Direction::Left, 100)], true), 1);
+
+        assert_eq!(count(&[Turn(Direction::Right, 50)], true), 1);
+        assert_eq!(count(&[Turn(Direction::Right, 51)], true), 1);
+
+        assert_eq!(count(&[Turn(Direction::Left, 50)], true), 1);
+        assert_eq!(count(&[Turn(Direction::Left, 51)], true), 1);
+
+        Ok(())
     }
 }
