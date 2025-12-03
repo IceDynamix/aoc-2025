@@ -1,13 +1,16 @@
-use std::error::Error;
+use anyhow::anyhow;
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let mut s = String::new();
     File::open("input/input01.txt".to_string())?.read_to_string(&mut s)?;
 
-    let turns: Vec<_> = s.lines().map(Turn::from_str).collect::<Result<_, _>>()?;
+    let turns: Vec<_> = s
+        .lines()
+        .map(Turn::from_str)
+        .collect::<anyhow::Result<_>>()?;
 
     println!("part 1: {}", count(&turns, false));
     println!("part 2: {}", count(&turns, true));
@@ -25,7 +28,7 @@ fn count(turns: &[Turn], with_passing_by: bool) -> usize {
         }
 
         let skip_counting_next_underflow = dial.value == 0 && turn.0 == Direction::Left;
-        
+
         let overflows = dial.turn_by(turn);
 
         if with_passing_by {
@@ -63,20 +66,17 @@ enum Direction {
 struct Turn(Direction, usize);
 
 impl FromStr for Turn {
-    type Err = String;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut chars = s.chars();
         let dir = match chars.next().expect("non-empty line") {
             'L' => Direction::Left,
             'R' => Direction::Right,
-            x => return Err(format!("unexpected direction {x}")),
+            x => return Err(anyhow!("unexpected direction {x}")),
         };
 
-        let amount = chars
-            .collect::<String>()
-            .parse()
-            .map_err(|e| format!("{e}"))?;
+        let amount = chars.collect::<String>().parse()?;
 
         Ok(Turn(dir, amount))
     }
@@ -225,7 +225,7 @@ L82";
     }
 
     #[test]
-    fn test_count() -> Result<(), Box<dyn Error>> {
+    fn test_count() {
         assert_eq!(count(&[Turn(Direction::Right, 1)], true), 0);
 
         assert_eq!(count(&[Turn(Direction::Right, 100)], true), 1);
@@ -236,7 +236,5 @@ L82";
 
         assert_eq!(count(&[Turn(Direction::Left, 50)], true), 1);
         assert_eq!(count(&[Turn(Direction::Left, 51)], true), 1);
-
-        Ok(())
     }
 }
