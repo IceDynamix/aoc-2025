@@ -123,17 +123,17 @@ L82";
     #[test]
     fn parse_turns() {
         let mut iter = EXAMPLE.lines().map(Turn::from_str);
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 68))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 30))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Right, 48))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 5))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Right, 60))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 55))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 1))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 99))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Right, 14))));
-        assert_eq!(iter.next(), Some(Ok(Turn(Direction::Left, 82))));
-        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 68));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 30));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Right, 48));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 5));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Right, 60));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 55));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 1));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 99));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Right, 14));
+        assert_eq!(iter.next().unwrap().unwrap(), Turn(Direction::Left, 82));
+        assert!(iter.next().is_none());
 
         assert!(Turn::from_str("Z10").is_err());
         assert!(Turn::from_str("L-10").is_err());
